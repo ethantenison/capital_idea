@@ -1,0 +1,31 @@
+---
+title: "Capital_Idea"
+author: "Ethan Tenison"
+date: "6/7/2020"
+output: html_document
+---
+
+```{r libraries, message=FALSE}
+#load libraries
+library(haven)
+library(dplyr)
+library(janitor)
+library(stringr)
+library(readr)
+library(ggplot2)
+library(tidyr)
+library(readxl)
+
+
+```
+
+
+
+
+```{r data_cleaning}
+
+surveys_casenotes <- read_excel("Semester Surveys with Case Notes.xlsx")
+
+surveys_casenotes <- surveys_casenotes[!duplicated(surveys_casenotes$First & surveys_casenotes$Last),]
+
+```
