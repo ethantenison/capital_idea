@@ -22,10 +22,55 @@ library(readxl)
 
 
 
-```{r data_cleaning}
+```{r nasremoved_cleaning}
 
 surveys_casenotes <- read_excel("Semester Surveys with Case Notes.xlsx")
 
-surveys_casenotes <- surveys_casenotes[!duplicated(surveys_casenotes$First & surveys_casenotes$Last),]
+
+```
+
+
+```{r plots}
+
+#GGPLOTS
+
+for(i in 1:ncol(surveys_casenotes)){
+  
+
+print(
+  ggplot(surveys_casenotes, aes(x=surveys_casenotes[[i]])) +
+  geom_histogram(stat = "count", fill = "lightblue") +
+  xlab(colnames(surveys_casenotes)[i])
+  )
+  
+  
+}
+
+```
+
+```{r mult_reg}
+
+nasremoved <- na.omit(surveys_casenotes)
+#nasremoved$`Academic Priority Level` <- as.factor(nasremoved$`Academic Priority Level`)
+#nasremoved$`7 What is your current academic standing at ACC?` <- as.factor(nasremoved$`7 What is your current academic standing at ACC?`)
+
+for (i in 1:length(nasremoved$`7 What is your current academic standing at ACC?`)) {
+    if (nasremoved$`7 What is your current academic standing at ACC?`[i] == "Good standing -") {
+        nasremoved$binary[i] <- 1
+    }
+    else {
+      nasremoved$binary[i] <- 0
+    }
+}
+
+#c = lm(nasremoved$`7 What is your current academic standing at ACC?` ~ nasremoved$`Academic Priority Level` + nasremoved$`Financial burden total score`, nasremoved=nasremoved)
+
+model <- glm(nasremoved$binary ~ nasremoved$`Academic Priority Level` + nasremoved$`Financial Priority Level` + nasremoved$`Situational Priority Level`
+             + nasremoved$`Session Minutes`,family=binomial(link='logit'),data=nasremoved)
+summary(model)
+
+#+ nasremoved$`Financial Priority Level` + nasremoved$`Situational Priority Level`
+
+
 
 ```
