@@ -19,6 +19,7 @@ library(anytime)
 library(lubridate)
 library(stringr)
 library(broom)
+library(janitor)
 
 
 ```
@@ -123,9 +124,14 @@ mult_reg <- surveys_casenotes %>% ungroup() %>% dplyr::select(-c(`6a Are you enr
                                                                  `28 What are your top two motivators for`,
                                                                  `29 How can your Career Navigator better`,
                                                                  `Estimated Graduation Date`,
-                                                                 `1c Who is your assigned Career Navigator?`))
+                                                                 `1c Who is your assigned Career Navigator?`,
+                                                                 "Academic Priority Level", "Financial Priority Level",
+                                                                 "Situational Priority Level", "7 What is your current academic standing at ACC?",
+                                                                 `16 Which best describes your current living situation?`,
+                                                                 `Career Goal`, "Component"
+                                                                 ))
 
-mult_reg$`1c Who is your assigned Career Navigator?` <- mult_reg$`1c Who is your assigned Career Navigator?` %>% replace_na("Not Assigned")
+
 
 mult_reg <- na.omit(mult_reg)
 
@@ -140,13 +146,12 @@ model <- glm(good_standing ~ .,
              family=binomial(link='logit'),data=mult_reg,  maxit = 100)
 
 summary(model)
+df <- as.data.frame(tidy(model))
 
+mult_reg <- clean_names(mult_reg)
 
+model2 <- glm(good_standing ~ academic_total_score +financial_burden_total_score + situational_total_score +,family=binomial(link='logit'),data=mult_reg)
 
-model2 <- glm(good_standing ~ `Academic  total score` + `Financial burden total score`
-              + `Situational total score` + `4 Last semester, how many credit hours registered?`
-              ,family=binomial(link='logit'),data=mult_reg)
-
-summary(model2)
+df <- as.data.frame(tidy(model2))
 
 ```
