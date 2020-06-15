@@ -15,6 +15,9 @@ library(readr)
 library(ggplot2)
 library(tidyr)
 library(readxl)
+library(anytime)
+library(lubridate)
+library(stringr)
 
 
 ```
@@ -22,12 +25,51 @@ library(readxl)
 
 
 
-```{r nasremoved_cleaning}
+```{r read}
 
 surveys_casenotes <- read_excel("Semester Surveys with Case Notes.xlsx")
 
+meetinglength <- surveys_casenotes$`Session Minutes`
+
 
 ```
+
+## Data Cleaning 
+
+
+```{r clean}
+#Converting dates to date formate
+surveys_casenotes$`Survey Date` <- anytime::anydate(surveys_casenotes$`Survey Date`)
+
+#Creating a variable for semester
+surveys_casenotes$semester <- ""
+
+for (i in 1:length(surveys_casenotes$`Survey Date`)){
+  
+  if(surveys_casenotes$`Survey Date`[i] <= as.Date("2020-01-01")){        
+                    surveys_casenotes$semester[i] <- "Fall 2019"
+  }
+  else if(surveys_casenotes$`Survey Date`[i] > as.Date("2020-01-01") & surveys_casenotes$`Survey Date`[i] <= as.Date("2020-06-01") ){
+                    surveys_casenotes$semester[i] <- "Spring 2020"
+  }
+  
+}
+
+
+#Add up total minutes for each student each semester 
+surveys_casenotes$`Session Minutes` <- str_replace_all(surveys_casenotes$`Session Minutes`, " Minutes", "")
+surveys_casenotes$`Session Minutes` <- as.numeric(surveys_casenotes$`Session Minutes`)
+test <- surveys_casenotes %>% group_by(First, Last, semester) %>% summarize(total_session_minutes = sum(`Session Minutes`))
+
+test <- surveys_casenotes %>% group_by_at(setdiff(names(surveys_casenotes), c("Session Minutes","Case Note", "Note Code", "Note Date Entered","Type of Contact","Note Importance","Note Meeting Date","Semester_Survey.Record ID", "Case_Notes.Record ID"))) %>% summarize(total_session_minutes = sum(`Session Minutes`))
+
+
+newd <-  test %>% group_by(First,Last) %>% filter(n()>2) 
+
+
+
+```
+
 
 
 ```{r plots}
