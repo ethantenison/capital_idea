@@ -18,6 +18,7 @@ library(readxl)
 library(anytime)
 library(lubridate)
 library(stringr)
+library(broom)
 
 
 ```
@@ -117,7 +118,12 @@ for (i in 1:length(surveys_casenotes$`7 What is your current academic standing a
 mult_reg <- surveys_casenotes %>% ungroup() %>% dplyr::select(-c(`6a Are you enrolled in College Prep?`,`6b Are you awaiting acceptance into a`,
                                                                  `11d Please specify your OTHER financial`,`23a If yes, please explain`,
                                                                  `Is this an Intake Applicant or a current`, `Survey Date`, `First`,
-                                                                 `Last`,`semester`))
+                                                                 `Last`,`semester`, `26 What are your top two academic goals`,
+                                                                 `27 What are your top two personal goals`,
+                                                                 `28 What are your top two motivators for`,
+                                                                 `29 How can your Career Navigator better`,
+                                                                 `Estimated Graduation Date`,
+                                                                 `1c Who is your assigned Career Navigator?`))
 
 mult_reg$`1c Who is your assigned Career Navigator?` <- mult_reg$`1c Who is your assigned Career Navigator?` %>% replace_na("Not Assigned")
 
@@ -131,12 +137,16 @@ mult_reg <- na.omit(mult_reg)
 #Running the model
 
 model <- glm(good_standing ~ .,
-             family=binomial(link='logit'),data=mult_reg)
+             family=binomial(link='logit'),data=mult_reg,  maxit = 100)
 
 summary(model)
 
 
 
+model2 <- glm(good_standing ~ `Academic  total score` + `Financial burden total score`
+              + `Situational total score` + `4 Last semester, how many credit hours registered?`
+              ,family=binomial(link='logit'),data=mult_reg)
 
+summary(model2)
 
 ```
