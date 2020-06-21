@@ -29,9 +29,23 @@ library(janitor)
 
 ```{r read}
 
-surveys_casenotes <- read_excel("Semester Surveys with Case Notes.xlsx")
+surveys_casenotes <- read_excel("data/Semester Surveys with Case Notes.xlsx")
+surveys_casenotes$`Case_Notes.Record ID` <- as.numeric(surveys_casenotes$`Case_Notes.Record ID`)
 
 meetinglength <- surveys_casenotes$`Session Minutes`
+
+#Adding demogrpahic information
+demographics <- read_excel("data/demographics.xlsx", 
+    col_types = c("numeric", "skip", "numeric", 
+        "text", "text", "text", "text", "text", 
+        "text", "text", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "text", "text", "text", 
+        "skip", "skip", "skip", "text", "numeric", 
+        "skip", "text", "numeric", "numeric", 
+        "text", "text", "text"))
+
+surveys_casenotes <- left_join(surveys_casenotes, demographics, by = c("Case_Notes.Record ID" = "Record ID"))
 
 
 ```
@@ -40,6 +54,51 @@ meetinglength <- surveys_casenotes$`Session Minutes`
 
 The data set contains tons of duplicated information. Most students complete the information survey once a semester, although that is not always the case. However, each time a navigator interacts with the student, they input the survey information in again. 
 ```{r clean}
+
+
+#Data cleaning demographic data
+for (i in 1:length(demographics$Race)){
+                  if(demographics$Race[i] == "Black or African American AND White" |
+                     demographics$Race[i] == "American Indian or Alaska Native, Black or African American" |
+                     demographics$Race[i] == "White, Other" | 
+                     demographics$Race[i] == "White|Biracial" |
+                     demographics$Race[i] == "White|N/A" |
+                     demographics$Race[i] == "Other|hispanic" |
+                     demographics$Race[i] == "Black or African American, Other" |
+                     demographics$Race[i] == "White|Latino" |
+                     demographics$Race[i] == "American Indian or Alaska Native, White" |
+                     demographics$Race[i] == "American Indian or Alaska Native|Asian|Native Hawaiian or Pacific Islander|White" |
+                     demographics$Race[i] == "American Indian or Alaska Native|White|pakistani" |
+                     demographics$Race[i] == "American Indian or Alaska Native|White" |
+                     demographics$Race[i] == "Black or African American|White" |
+                     demographics$Race[i] == "hispanic" |
+                     demographics$Race[i] == "Mexican" |
+                     demographics$Race[i] == "hispanic" |
+                     demographics$Race[i] == "American Indian or Alaska Native|Asian|Black or African American" |
+                     demographics$Race[i] == "White|Afghan" |
+                     demographics$Race[i] == "Mexican American" |
+                     demographics$Race[i] == "Asian|White" |
+                     demographics$Race[i] == "honduran" |
+                     demographics$Race[i] == "White|Adopted" |
+                     demographics$Race[i] == "Black or African American|White|Mexican" |
+                     demographics$Race[i] == "American Indian or Alaska Native|Black or African American" |
+                     demographics$Race[i] == "Hispanic/Latino"  )        {
+                    demographics$Race[i] <- "Multiracial"
+                  }
+                   else if(demographics$Race[i] == "Somali" |
+                           demographics$Race[i] == "Ethiopian"){        
+                    demographics$Race[i] <- "Black or African American"
+                 }
+                else if(demographics$Race[i] == "Other|unknown"){        
+                    demographics$Race[i] <- "Other"
+                 }
+}
+
+
+
+#Joining casenotes and demographic data
+surveys_casenotes <- left_join(surveys_casenotes, demographics, by = c("Case_Notes.Record ID" = "Record ID"))
+
 #Converting dates to date formate
 surveys_casenotes$`Survey Date` <- anytime::anydate(surveys_casenotes$`Survey Date`)
 
@@ -65,6 +124,7 @@ surveys_casenotes$`Session Minutes` <- as.numeric(surveys_casenotes$`Session Min
 #Changing names to all upper 
 surveys_casenotes$First <- toupper(surveys_casenotes$First)
 surveys_casenotes$Last <- toupper(surveys_casenotes$Last)
+
 
 #Getting rid of duplicate rows and sum all the minutes a navigator spent interacting with student per semester
 survey <- surveys_casenotes %>% group_by_at(setdiff(names(surveys_casenotes), c("Session Minutes","Case Note", "Note Code", "Note Date Entered","Type of Contact","Note Importance","Note Meeting Date","Semester_Survey.Record ID", "Case_Notes.Record ID"))) %>% summarize(total_session_minutes = sum(`Session Minutes`))
@@ -100,6 +160,17 @@ print(
   
   
 }
+
+```
+
+# Demographic data
+
+```{r demographics}
+
+library(readxl)
+demographics <- read_excel("data/demographics.xlsx")
+
+
 
 ```
 
