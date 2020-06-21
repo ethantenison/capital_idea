@@ -45,7 +45,7 @@ demographics <- read_excel("data/demographics.xlsx",
         "skip", "text", "numeric", "numeric", 
         "text", "text", "text"))
 
-surveys_casenotes <- left_join(surveys_casenotes, demographics, by = c("Case_Notes.Record ID" = "Record ID"))
+
 
 
 ```
@@ -57,47 +57,75 @@ The data set contains tons of duplicated information. Most students complete the
 
 
 #Data cleaning demographic data
+demographics$Race[is.na(demographics$Race)] <- "Other"
+
 for (i in 1:length(demographics$Race)){
-                  if(demographics$Race[i] == "Black or African American AND White" |
-                     demographics$Race[i] == "American Indian or Alaska Native, Black or African American" |
-                     demographics$Race[i] == "White, Other" | 
-                     demographics$Race[i] == "White|Biracial" |
-                     demographics$Race[i] == "White|N/A" |
-                     demographics$Race[i] == "Other|hispanic" |
-                     demographics$Race[i] == "Black or African American, Other" |
-                     demographics$Race[i] == "White|Latino" |
-                     demographics$Race[i] == "American Indian or Alaska Native, White" |
-                     demographics$Race[i] == "American Indian or Alaska Native|Asian|Native Hawaiian or Pacific Islander|White" |
-                     demographics$Race[i] == "American Indian or Alaska Native|White|pakistani" |
-                     demographics$Race[i] == "American Indian or Alaska Native|White" |
-                     demographics$Race[i] == "Black or African American|White" |
-                     demographics$Race[i] == "hispanic" |
-                     demographics$Race[i] == "Mexican" |
-                     demographics$Race[i] == "hispanic" |
-                     demographics$Race[i] == "American Indian or Alaska Native|Asian|Black or African American" |
-                     demographics$Race[i] == "White|Afghan" |
-                     demographics$Race[i] == "Mexican American" |
-                     demographics$Race[i] == "Asian|White" |
-                     demographics$Race[i] == "honduran" |
-                     demographics$Race[i] == "White|Adopted" |
-                     demographics$Race[i] == "Black or African American|White|Mexican" |
-                     demographics$Race[i] == "American Indian or Alaska Native|Black or African American" |
-                     demographics$Race[i] == "Hispanic/Latino"  )        {
-                    demographics$Race[i] <- "Multiracial"
+                if(demographics$Race[i] == "Black or African American AND White" |
+                   demographics$Race[i] == "American Indian or Alaska Native, Black or African American" |
+                   demographics$Race[i] == "White, Other" | 
+                   demographics$Race[i] == "White|Biracial" |
+                   demographics$Race[i] == "White|N/A" |
+                   demographics$Race[i] == "Other|hispanic" |
+                   demographics$Race[i] == "Black or African American, Other" |
+                   demographics$Race[i] == "White|Latino" |
+                   demographics$Race[i] == "American Indian or Alaska Native, White" |
+                   demographics$Race[i] == "American Indian or Alaska Native|Asian|Native Hawaiian or Pacific Islander|White" |
+                   demographics$Race[i] == "American Indian or Alaska Native|White|pakistani" |
+                   demographics$Race[i] == "American Indian or Alaska Native|White" |
+                   demographics$Race[i] == "Black or African American|White" |
+                   demographics$Race[i] == "American Indian or Alaska Native|Asian|Black or African American" |
+                   demographics$Race[i] == "White|Afghan" |
+                   demographics$Race[i] == "Asian|White" |
+                   demographics$Race[i] == "honduran" |
+                   demographics$Race[i] == "White|Adopted" |
+                   demographics$Race[i] == "Black or African American|White|Mexican" |
+                   demographics$Race[i] == "American Indian or Alaska Native|Black or African American")        {
+                  demographics$Race[i] <- "Multiracial"
+                }
+                else if(demographics$Race[i] == "Somali" |
+                        demographics$Race[i] == "Ethiopian"){ 
+                  
+                        demographics$Race[i] <- "Black or African American"
+                }
+                else if(demographics$Race[i] == "Other|unknown" |
+                        demographics$Race[i] == "Doesn’t matter."){        
+                        demographics$Race[i] <- "Other"
+                }
+                else if(demographics$Race[i] == "hispanic" |
+                        demographics$Race[i] == "Mexican" |
+                        demographics$Race[i] == "Hispanic" |
+                        demographics$Race[i] == "Mexican American" |
+                        demographics$Race[i] == "White|Hispanic" | 
+                         demographics$Race[i] == "Hispanic/Latino" ){        
+                        demographics$Race[i] <- "White"
+                }
+}
+
+demographics$`Living Arrangement`[is.na(demographics$`Living Arrangement`)] <- "Other"
+
+for (i in 1:length(demographics$`Living Arrangement`)){
+                  if(demographics$`Living Arrangement`[i] == "Living with parents" | 
+                     demographics$`Living Arrangement`[i] == "Currently staying with son and at home" |
+                     demographics$`Living Arrangement`[i] == "Living with my parents" |
+                     demographics$`Living Arrangement`[i] == "Lives with parent" |
+                     demographics$`Living Arrangement`[i] == "parents house hold"){        
+                    demographics$`Living Arrangement`[i] <- "Lives with Family"
                   }
-                   else if(demographics$Race[i] == "Somali" |
-                           demographics$Race[i] == "Ethiopian"){        
-                    demographics$Race[i] <- "Black or African American"
+                 else if(demographics$`Living Arrangement`[i] == "Renting in a family house" |
+                         demographics$`Living Arrangement`[i] == "One Family"){        
+                    demographics$`Living Arrangement`[i] <- "One family household"
                  }
-                else if(demographics$Race[i] == "Other|unknown"){        
-                    demographics$Race[i] <- "Other"
+                 else if(demographics$`Living Arrangement`[i] == "Has one roommate" |
+                         demographics$`Living Arrangement`[i] == "no place of my own. Living with a friend" |
+                         demographics$`Living Arrangement`[i] == "Live with my sister and roomates"){        
+                    demographics$`Living Arrangement`[i] <- "Other Arrangement"
                  }
 }
 
-
-
 #Joining casenotes and demographic data
 surveys_casenotes <- left_join(surveys_casenotes, demographics, by = c("Case_Notes.Record ID" = "Record ID"))
+surveys_casenotes$Race[is.na(surveys_casenotes$Race)] <- "Other"
+surveys_casenotes$`Living Arrangement`[is.na(surveys_casenotes$`Living Arrangement`)] <- "Other Arrangement"
 
 #Converting dates to date formate
 surveys_casenotes$`Survey Date` <- anytime::anydate(surveys_casenotes$`Survey Date`)
