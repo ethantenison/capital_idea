@@ -165,8 +165,31 @@ surveyspring <- filter(survey, semester == "Spring 2020")
 surveyspring <- surveyspring[(!duplicated(surveyspring$First) & !duplicated(surveyspring$Last) ), ]
 
 surveys_casenotes <- bind_rows(surveyfall, surveyspring)
- 
 
+surveys_casenotes$`Household Languages`[is.na(surveys_casenotes$`Household Languages`)] <- "Unknown"
+
+#Creating a list of bilingual students 
+bilingual_and_English <- unique(surveys_casenotes$`Household Languages`[grep("English", surveys_casenotes$`Household Languages`)])
+bilingual_and_English <- bilingual_and_English[-1]
+ 
+#putting variable for home language 
+for (i in 1:length(surveys_casenotes$`Household Languages`)){
+    for (j in 1:length(bilingual_and_English)){
+  
+      if(surveys_casenotes$`Household Languages`[i] == bilingual_and_English[j]){        
+                        surveys_casenotes$`Household Languages`[i] <- "Bilingual"
+      }
+      
+    }
+}
+
+for (i in 1:length(surveys_casenotes$`Household Languages`)){
+  if(surveys_casenotes$`Household Languages`[i] != "English" & surveys_casenotes$`Household Languages`[i] != "Bilingual" &
+     surveys_casenotes$`Household Languages`[i] != "Spanish" & surveys_casenotes$`Household Languages`[i] != "Unknown"){        
+                        surveys_casenotes$`Household Languages`[i] <- "non_english_spanish"
+      }
+  
+}
 
 
 ```
@@ -202,7 +225,20 @@ demographics <- read_excel("data/demographics.xlsx")
 
 ```
 
-```{r mult_reg}
+# Assumptions of a logistic regression model 
+
+* The outcome is a binary or dichotomous variable like yes vs no, positive vs negative, 1 vs 0.
+
+* There is a linear relationship between the logit of the outcome and each predictor variables. Recall that the logit function is logit(p) = log(p/(1-p)), where p is the probabilities of the outcome (see Chapter @ref(logistic-regression)).
+
+* There is no influential values (extreme values or outliers) in the continuous predictors
+
+* There is no high intercorrelations (i.e. multicollinearity) among the predictors.
+
+# creating binary variable 
+```{r binary}
+#turn off scientific notation
+options(scipen=999)
 
 #Creating a binary variable for whether a student is in good standing or not. 
 for (i in 1:length(surveys_casenotes$`7 What is your current academic standing at ACC?`)) {
@@ -214,6 +250,10 @@ for (i in 1:length(surveys_casenotes$`7 What is your current academic standing a
     }
 }
 
+```
+
+#Removing undesireable rows 
+```{r}
 #removing nas from selected columns
 mult_reg <- surveys_casenotes %>% ungroup() %>% dplyr::select(-c(`6a Are you enrolled in College Prep?`,`6b Are you awaiting acceptance into a`,
                                                                  `11d Please specify your OTHER financial`,`23a If yes, please explain`,
@@ -227,30 +267,155 @@ mult_reg <- surveys_casenotes %>% ungroup() %>% dplyr::select(-c(`6a Are you enr
                                                                  "Academic Priority Level", "Financial Priority Level",
                                                                  "Situational Priority Level", "7 What is your current academic standing at ACC?",
                                                                  `16 Which best describes your current living situation?`,
-                                                                 `Career Goal`, "Component"
+                                                                 `Career Goal`, "Component", City ,"Do you have children?",
+                                                                 "If no diploma or GED obtained, Highest...","SAGE was taken in:",                                                                                        "SAGE Reasoning", "SAGE Interest", "Educational Status", "Race",
+                                                                 "12 Over the past 3 months, have you had legal issues related to child support?",    
+                                                                 "12a Over the past 3 months, have you had legal issues related to housing eviction?",   
+                                                                 "12b Over the past 3 months, have you had legal issues related to bankrupcy?",          
+                                                                 "12c Over the past 3 months, have you had legal issues related to criminal offenses (not including traffic violations)?",
+                                                                 "12d Over the past 3 months, have you had legal issues related to tickets or traffic violations?"
                                                                  ))
 
 
 
-mult_reg <- na.omit(mult_reg)
-
-# cols <- c("good_standing","Academic  total score","Financial burden total score", "Situational total score",
-#           "total_session_minutes","24 What form of transportation do you most commonly use?" )
-# mult_reg <- surveys_casenotes[!rowSums(is.na(surveys_casenotes[cols])), ]
+```
 
 
+
+```{r full_model}
 #Running the model
 
-model <- glm(good_standing ~ .,
-             family=binomial(link='logit'),data=mult_reg,  maxit = 100)
+mult_reg <- clean_names(mult_reg)
+mult_reg <- mult_reg %>% drop_na(total_session_minutes) %>% select(-c(x15_what_best_describes_your_current_childcare_arrangements,
+                                                                      x4_last_semester_how_many_credit_hours_registered,
+                                                                      x5_last_semester_how_many_credit_hours_completed))  
+
+#removing row 237 because it had high leverage 
+mult_reg <- mult_reg[-c(237), ]
+
+model <- glm(good_standing ~ ., family=binomial(link='logit'),data=mult_reg,  maxit = 100)
 
 summary(model)
 df <- as.data.frame(tidy(model))
+#Race didnt' seem to be important factor in whether a student was in good academic statnding, but being hispanic was
 
-mult_reg <- clean_names(mult_reg)
+```
 
-model2 <- glm(good_standing ~ academic_total_score +financial_burden_total_score + situational_total_score +,family=binomial(link='logit'),data=mult_reg)
 
-df <- as.data.frame(tidy(model2))
+```{r parsimonious_model}
+
+x4model2 <- dplyr::select(mult_reg,good_standing ,academic_total_score ,financial_burden_total_score , situational_total_score , total_session_minutes , are_you_of_hispanic_or_latino_origin , 	tabe_mathematics , x6_how_many_credit_hours_currently_registered_this_semester , gender , status , 	x8_do_you_think_there_are_any_issues_that_might_keep_you_from_maintaining_good_standing_with_acc)
+
+#Removing 521 because it is highly influential
+x4model2 <- x4model2[-c(521), ]
+
+x4model2 <- na.omit(x4model2)
+
+model2 <- glm(good_standing ~ poly(academic_total_score, 2) + situational_total_score + poly(total_session_minutes, 3) + are_you_of_hispanic_or_latino_origin + 	poly(tabe_mathematics, 2) + x6_how_many_credit_hours_currently_registered_this_semester + gender + status + 	x8_do_you_think_there_are_any_issues_that_might_keep_you_from_maintaining_good_standing_with_acc ,family=binomial(link='logit'),data=x4model2)
+
+summary(model2)
+df2 <- as.data.frame(tidy(model2))
+
+#Converting log odds to probability 
+source("https://sebastiansauer.github.io/Rcode/logit2prob.R")
+logit2prob(coef(model2))
+
+
+# Predict the probability (p) of diabete positivity
+probabilities <- predict(model2, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, "pos", "neg")
+head(predicted.classes)
+
+# good_standing_mex <-factor(hispanics$good_standing,c(0,1),labels=c('No','Yes'))
+# SurT_mex<-table(good_standing_mex)addmargins(SurT_mex)
+# prop.table(SurT_mex)
+```
+
+
+```{r test_logistic}
+
+#################################Linearly assumption 
+# Select only numeric predictors
+mydata <- x4model2 %>%
+  dplyr::select_if(is.numeric) 
+predictors <- colnames(mydata)
+
+# Bind the logit and tidying the data for plot
+mydata <- mydata %>%
+  mutate(logit = log(probabilities/(1-probabilities))) %>%
+  gather(key = "predictors", value = "predictor.value", -logit)
+
+#create scatter plots 
+ggplot(mydata, aes(logit, predictor.value))+
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(method = "loess") + 
+  theme_bw() + 
+  facet_wrap(~predictors, scales = "free_y")
+
+################################Influential Values
+plot(model2, which = 4, id.n = 3)
+
+# Extract model results
+model.data <- augment(model2) %>% 
+  mutate(index = 1:n()) 
+
+
+model.data %>% top_n(3, .cooksd)
+
+ggplot(model.data, aes(index, .std.resid)) + 
+  geom_point(aes(color = factor(good_standing)), alpha = .5) +
+  theme_bw()
+
+test_influential <- model.data %>% filter(abs(.std.resid) > 3)
+
+################################Multicollinearity 
+library(car)
+
+car::vif(model2)
+```
+
+
+```{r log_prediction}
+library(caTools)
+
+x4model3 <- x4model2
+
+#Splitting the data into test and train 
+set.seed(27)
+split = sample.split(x4model3$good_standing, SplitRatio = 0.70)
+train = subset(x4model3, split == TRUE)
+test = subset(x4model3, split == FALSE)
+
+
+#Running model on the train set
+model3 <- glm(good_standing ~ poly(academic_total_score, 2) + situational_total_score + poly(total_session_minutes, 3) + are_you_of_hispanic_or_latino_origin + 	poly(tabe_mathematics, 2) + x6_how_many_credit_hours_currently_registered_this_semester + gender + status + 	x8_do_you_think_there_are_any_issues_that_might_keep_you_from_maintaining_good_standing_with_acc ,family=binomial(link='logit'),data=train)
+
+summary(model3)
+df3 <- as.data.frame(tidy(model3))
+
+
+
+#Compute confusion matrix 
+library(caret)
+p <- predict(model3, test, type = "response")
+print(summary(p))
+
+
+p_class <- ifelse(p > 0.8, "Predict 1", "Predict 0")
+print(table(p_class, test[["good_standing"]]))
+
+
+
+#COmputing the accuracy 
+#For test set
+print("Test set")
+t <- table(p_class, test[["good_standing"]]) #How many instances were misclassified? Error rates?
+t
+#Accuracy Rate
+(t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2])
+
+print((t[1,1])/ (t[2,1] +t[1,1]))
+print((t[2,2])/ (t[2,2] +t[1,2]))
+
 
 ```
