@@ -401,7 +401,7 @@ p <- predict(model3, test, type = "response")
 print(summary(p))
 
 
-p_class <- ifelse(p > 0.8, "Predict 1", "Predict 0")
+p_class <- ifelse(p > 0.9, "Predict 1", "Predict 0")
 print(table(p_class, test[["good_standing"]]))
 
 
@@ -417,5 +417,119 @@ t
 print((t[1,1])/ (t[2,1] +t[1,1]))
 print((t[2,2])/ (t[2,2] +t[1,2]))
 
+
+```
+
+# Cross Validation for the logistic regression model 
+Based on the results, it's clear that the model is better at predicting than being completely random. I think it's difficult to assess with CV because the samples are too small for logistic regression. 
+
+```{r log_kfoldcv}
+set.seed(27)
+rand <- sample(nrow(x4model3))
+
+k1row <- rand[rand %% 5 + 1 == 1]
+k2row <- rand[rand %% 5 + 1 == 2]
+k3row <- rand[rand %% 5 + 1 == 3]
+k4row <- rand[rand %% 5 + 1 == 4]
+k5row <- rand[rand %% 5 + 1 == 5]
+
+k1fold <- x4model3[k1row,]
+k2fold <- x4model3[k2row,]
+k3fold <- x4model3[k3row,]
+k4fold <- x4model3[k4row,]
+k5fold <- x4model3[k5row,]
+
+print("Summary Statistics for 5 folds")
+summary(k1fold$good_standing)
+summary(k2fold$good_standing)
+summary(k3fold$good_standing)
+summary(k4fold$good_standing)
+summary(k5fold$good_standing)
+
+
+#model with k1fold as test 
+model <- glm(good_standing ~ poly(academic_total_score, 2) + situational_total_score + poly(total_session_minutes, 3) + are_you_of_hispanic_or_latino_origin + 	poly(tabe_mathematics, 2) + x6_how_many_credit_hours_currently_registered_this_semester + gender + status + 	x8_do_you_think_there_are_any_issues_that_might_keep_you_from_maintaining_good_standing_with_acc  ,family=binomial(link='logit'),data=rbind(k2fold, k3fold,k4fold,k5fold))
+p <- predict(model, k1fold, type = "response")
+p_class <- ifelse(p > 0.9, "Predict 1", "Predict 0")
+print(table(p_class, k1fold[["good_standing"]]))
+t <- table(p_class, k1fold[["good_standing"]])
+(t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2])
+
+print((t[1,1])/ (t[2,1] +t[1,1]))
+print((t[2,2])/ (t[2,2] +t[1,2]))
+
+#model with k2fold as test
+model <- glm(good_standing ~ poly(academic_total_score, 2) + situational_total_score + poly(total_session_minutes, 3) + are_you_of_hispanic_or_latino_origin + 	poly(tabe_mathematics, 2) + x6_how_many_credit_hours_currently_registered_this_semester + gender + status + 	x8_do_you_think_there_are_any_issues_that_might_keep_you_from_maintaining_good_standing_with_acc  ,family=binomial(link='logit'),data=rbind(k1fold, k3fold,k4fold,k5fold))
+p <- predict(model, k2fold, type = "response")
+p_class <- ifelse(p > 0.9, "Predict 1", "Predict 0")
+print(table(p_class, k2fold[["good_standing"]]))
+t <- table(p_class, k2fold[["good_standing"]])
+(t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2])
+
+print((t[1,1])/ (t[2,1] +t[1,1]))
+print((t[2,2])/ (t[2,2] +t[1,2]))
+
+#Model with k3fold as test
+model <- glm(good_standing ~ poly(academic_total_score, 2) + situational_total_score + poly(total_session_minutes, 3) + are_you_of_hispanic_or_latino_origin + 	poly(tabe_mathematics, 2) + x6_how_many_credit_hours_currently_registered_this_semester + gender + status + 	x8_do_you_think_there_are_any_issues_that_might_keep_you_from_maintaining_good_standing_with_acc  ,family=binomial(link='logit'),data=rbind(k2fold, k1fold,k4fold,k5fold))
+p <- predict(model, k3fold, type = "response")
+p_class <- ifelse(p > 0.9, "Predict 1", "Predict 0")
+print(table(p_class, k3fold[["good_standing"]]))
+t <- table(p_class, k3fold[["good_standing"]])
+(t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2])
+
+print((t[1,1])/ (t[2,1] +t[1,1]))
+print((t[2,2])/ (t[2,2] +t[1,2]))
+
+#Model with k4fold as test
+model <- glm(good_standing ~ poly(academic_total_score, 2) + situational_total_score + poly(total_session_minutes, 3) + are_you_of_hispanic_or_latino_origin + 	poly(tabe_mathematics, 2) + x6_how_many_credit_hours_currently_registered_this_semester + gender + status + 	x8_do_you_think_there_are_any_issues_that_might_keep_you_from_maintaining_good_standing_with_acc  ,family=binomial(link='logit'),data=rbind(k2fold, k1fold,k3fold,k5fold))
+p <- predict(model, k4fold, type = "response")
+p_class <- ifelse(p > 0.9, "Predict 1", "Predict 0")
+print(table(p_class, k4fold[["good_standing"]]))
+t <- table(p_class, k4fold[["good_standing"]])
+(t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2])
+
+print((t[1,1])/ (t[2,1] +t[1,1]))
+print((t[2,2])/ (t[2,2] +t[1,2]))
+
+#Model with k5fold as test
+model <- glm(good_standing ~ poly(academic_total_score, 2) + situational_total_score + poly(total_session_minutes, 3) + are_you_of_hispanic_or_latino_origin + 	poly(tabe_mathematics, 2) + x6_how_many_credit_hours_currently_registered_this_semester + gender + status + 	x8_do_you_think_there_are_any_issues_that_might_keep_you_from_maintaining_good_standing_with_acc  ,family=binomial(link='logit'),data=rbind(k2fold, k1fold,k3fold,k4fold))
+p <- predict(model, k5fold, type = "response")
+p_class <- ifelse(p > 0.9, "Predict 1", "Predict 0")
+print(table(p_class, k5fold[["good_standing"]]))
+t <- table(p_class, k5fold[["good_standing"]])
+(t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2])
+
+print((t[1,1])/ (t[2,1] +t[1,1]))
+print((t[2,2])/ (t[2,2] +t[1,2]))
+
+
+
+
+```
+
+
+```{r knn}
+library(class)
+library(gmodels)
+library(caret)
+
+#KNN has higher total accuracy rate, but
+dfknn <- x4model2
+  
+set.seed(27)
+dmy <- dummyVars(" ~ .", data = dfknn)
+dfknn <- data.frame(predict(dmy, newdata = dfknn))
+split = sample.split(dfknn$good_standing, SplitRatio = 0.7)
+train_knn = subset(dfknn, split == TRUE)
+train_labels = train_knn[["good_standing"]]
+train_knn[is.na(train_knn)] <- 0
+
+test_knn = subset(dfknn, split == FALSE)
+test_labels = test_knn[["good_standing"]]
+test_knn[is.na(test_knn)] <- 0
+
+
+dfknn_prediction = class::knn(train= train_knn, test = test_knn, cl= train_labels, k = 5)
+CrossTable(x= test_labels, y= dfknn_prediction, chisq = FALSE)
 
 ```
