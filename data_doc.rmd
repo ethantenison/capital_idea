@@ -252,7 +252,7 @@ for (i in 1:length(surveys_casenotes$`7 What is your current academic standing a
 
 ```
 
-#Removing undesireable rows 
+#Removing undesireable columns
 ```{r}
 #removing nas from selected columns
 mult_reg <- surveys_casenotes %>% ungroup() %>% dplyr::select(-c(`6a Are you enrolled in College Prep?`,`6b Are you awaiting acceptance into a`,
@@ -531,5 +531,95 @@ test_knn[is.na(test_knn)] <- 0
 
 dfknn_prediction = class::knn(train= train_knn, test = test_knn, cl= train_labels, k = 5)
 CrossTable(x= test_labels, y= dfknn_prediction, chisq = FALSE)
+
+
+
+```
+
+```{r tree_full}
+
+
+tree <- dfknn
+
+
+
+
+### Split data into traiing/test index ###
+set.seed(27)
+train <- sample(c(TRUE,FALSE), nrow(tree), rep=TRUE, prob = c(0.6,0.4))
+test <- (!train)
+df_train <- tree[train,]
+
+### Growing a decision tree ###
+
+library(tree)
+
+mod.tree <- tree(good_standing ~ ., data = df_train, mindev = 0.001, minsize = 5)  
+
+summary(mod.tree)
+
+plot(mod.tree)
+text(mod.tree, pretty = 1)
+
+```
+
+```{r tree_prune}
+### Prune tree with CV ###
+
+#Find the best size of the tree - the point where deviance(dev) is lowest
+mod.tree.cv <- cv.tree(mod.tree, FUN = prune.tree)
+mod.tree.cv
+
+plot(mod.tree.cv$size, mod.tree.cv$dev, type = "b")
+#Seems like best size of the tree is 3 - lets use this to prune the tree
+
+mod.tree.prune <- prune.tree(mod.tree, best = 3)
+
+summary(mod.tree.prune)
+
+par(xpd = TRUE)
+plot(mod.tree.prune)
+title(main= "Good Standing")
+text(mod.tree.prune, pretty = 1,  splits = TRUE, cex=.8)
+
+
+# There is not enough variation. Based on the 50% threshold I was using all the leads would convert. 
+
+
+```
+
+# The logistic regression actually did a better job at predicting those that were going to be in bad standing 
+```{r tree_predict}
+### Predict Conversion, using the pruned tree ###
+tree$good_standing.Pred <- predict(mod.tree.prune, newdata = tree)
+
+#Reapply 50% classification threshold for predicted conversion
+tree$good_standing.Pred.Class <- ifelse(tree$good_standing.Pred > 0.6, "1", "0")
+table(tree$good_standing.Pred.Class)
+
+tree$good_standing <- as.character(tree$good_standing)
+
+#For training set
+print("Train set")
+t <-table(Truegood_standing = tree$good_standing[train], Predgood_standing = tree$good_standing.Pred.Class[train]) #How many instances were misclassified? Error rates?
+t
+#Accuracy Rate 
+print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
+
+
+#For test set
+print("Test set")
+t <-table(Truegood_standing = tree$good_standing[test], Predgood_standing = tree$good_standing.Pred.Class[test]) #How many instances were misclassified? Error
+t 
+#Accuracy Rate 
+print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
+
+
+print((t[1,1])/ (t[2,1] +t[1,1]))
+print((t[2,2])/ (t[2,2] +t[1,2]))
+
+
+
+
 
 ```
