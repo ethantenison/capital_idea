@@ -373,6 +373,8 @@ library(car)
 
 car::vif(model2)
 ```
+# The odds of being in good standing with the university are 70% lower for hispanics than non hispanics. The probability of being in good standing is approx. 77% compared to approx 89% of the rest. 
+
 
 
 ```{r log_prediction}
@@ -412,9 +414,12 @@ print("Test set")
 t <- table(p_class, test[["good_standing"]]) #How many instances were misclassified? Error rates?
 t
 #Accuracy Rate
+print("Accuracy Rate")
 (t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2])
 
+print("True Negative")
 print((t[1,1])/ (t[2,1] +t[1,1]))
+print("True Positive")
 print((t[2,2])/ (t[2,2] +t[1,2]))
 
 
@@ -422,6 +427,8 @@ print((t[2,2])/ (t[2,2] +t[1,2]))
 
 # Cross Validation for the logistic regression model 
 Based on the results, it's clear that the model is better at predicting than being completely random. I think it's difficult to assess with CV because the samples are too small for logistic regression. 
+
+* Cross validations shows a weaker accuracy score but this might be because there are not enough samples. 
 
 ```{r log_kfoldcv}
 set.seed(27)
@@ -507,7 +514,7 @@ print((t[2,2])/ (t[2,2] +t[1,2]))
 
 ```
 
-
+# KNN does a terrible job 
 ```{r knn}
 library(class)
 library(gmodels)
@@ -519,7 +526,7 @@ dfknn <- x4model2
 set.seed(27)
 dmy <- dummyVars(" ~ .", data = dfknn)
 dfknn <- data.frame(predict(dmy, newdata = dfknn))
-split = sample.split(dfknn$good_standing, SplitRatio = 0.7)
+split = sample.split(dfknn$good_standing, SplitRatio = 0.6)
 train_knn = subset(dfknn, split == TRUE)
 train_labels = train_knn[["good_standing"]]
 train_knn[is.na(train_knn)] <- 0
@@ -531,8 +538,6 @@ test_knn[is.na(test_knn)] <- 0
 
 dfknn_prediction = class::knn(train= train_knn, test = test_knn, cl= train_labels, k = 5)
 CrossTable(x= test_labels, y= dfknn_prediction, chisq = FALSE)
-
-
 
 ```
 
@@ -589,12 +594,14 @@ text(mod.tree.prune, pretty = 1,  splits = TRUE, cex=.8)
 ```
 
 # The logistic regression actually did a better job at predicting those that were going to be in bad standing 
+
+* True negative is very low 
 ```{r tree_predict}
 ### Predict Conversion, using the pruned tree ###
 tree$good_standing.Pred <- predict(mod.tree.prune, newdata = tree)
 
 #Reapply 50% classification threshold for predicted conversion
-tree$good_standing.Pred.Class <- ifelse(tree$good_standing.Pred > 0.6, "1", "0")
+tree$good_standing.Pred.Class <- ifelse(tree$good_standing.Pred > 0.9, "1", "0")
 table(tree$good_standing.Pred.Class)
 
 tree$good_standing <- as.character(tree$good_standing)
