@@ -257,7 +257,7 @@ mult_reg <- surveys_casenotes %>% ungroup() %>% dplyr::select(-c(`6a Are you enr
                                                                  "Situational Priority Level", "7 What is your current academic standing at ACC?",
                                                                 # `16 Which best describes your current living situation?`,
                                                                  `Career Goal`, "Component", City ,#"Do you have children?",
-                                                                 "If no diploma or GED obtained, Highest...","SAGE was taken in:",                                                                                        "SAGE Reasoning", "SAGE Interest", "Educational Status", "Race",
+                                                                 "If no diploma or GED obtained, Highest...","SAGE was taken in:",                                                                                                 "SAGE Reasoning", "SAGE Interest", "Educational Status", "Race"
                                                                 # "12 Over the past 3 months, have you had legal issues related to child support?",    
                                                                 # "12a Over the past 3 months, have you had legal issues related to housing eviction?",   
                                                                 # "12b Over the past 3 months, have you had legal issues related to bankrupcy?",          
@@ -273,9 +273,9 @@ mult_reg <- surveys_casenotes %>% ungroup() %>% dplyr::select(-c(`6a Are you enr
 
 ```{r full_model}
 #Running the model
-
+library(MASS)
 mult_reg <- clean_names(mult_reg)
-mult_reg <- mult_reg %>% drop_na(total_session_minutes) %>% select(-c(x15_what_best_describes_your_current_childcare_arrangements,
+mult_reg <- mult_reg %>% drop_na(total_session_minutes) %>% dplyr::select(-c(x15_what_best_describes_your_current_childcare_arrangements,
                                                                       x4_last_semester_how_many_credit_hours_registered,
                                                                       x5_last_semester_how_many_credit_hours_completed,
                                                                       academic_total_score,
@@ -294,7 +294,9 @@ mult_reg$do_you_have_children[is.na(mult_reg$do_you_have_children)] <- "Unknown"
 #removing row 237 because it had high leverage 
 mult_reg <- mult_reg[-c(237), ]
 
-model <- glm(good_standing ~ ., family=binomial(link='logit'),data=mult_reg,  maxit = 100)
+#Remove NAs for it to work 
+mult_reg <- na.omit(mult_reg)
+model <- glm(good_standing ~ ., family=binomial(link='logit'),data=mult_reg,  maxit = 100) %>%  stepAIC(trace = FALSE) #added backward stepwise selection
 
 # summary(model) the tidy model works better 
 df <- as.data.frame(tidy(model))
@@ -303,22 +305,13 @@ df <- as.data.frame(tidy(model))
 ```
 
 
-```{r backward_stepwise}
-library(MASS)
-step <- stepAIC(model, direction = "backward", trace = FALSE)
-step
-
-
-
-
-```
 # We need to get to the bottom of the fact that Hispanics had a higher likelihood of being in bad standing with the university 
 
 ```{r full_model_hispanic_only}
 
-hispanics <- mult_reg %>%  dplyr::filter(are_you_of_hispanic_or_latino_origin == "Yes") %>% select(-c(are_you_of_hispanic_or_latino_origin))
+hispanics <- mult_reg %>%  dplyr::filter(are_you_of_hispanic_or_latino_origin == "Yes") %>% dplyr::select(-c(are_you_of_hispanic_or_latino_origin))
 
-model_hispanic <- glm(good_standing ~ ., family=binomial(link='logit'),data=hispanics)
+model_hispanic <- glm(good_standing ~ ., family=binomial(link='logit'),data=hispanics) %>% stepAIC(trace = FALSE)
 df_hispanic <- as.data.frame(tidy(model_hispanic))
 
 ```
