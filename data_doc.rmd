@@ -214,17 +214,6 @@ print(
 
 ```
 
-# Demographic data
-
-```{r demographics}
-
-library(readxl)
-demographics <- read_excel("data/demographics.xlsx")
-
-
-
-```
-
 # Assumptions of a logistic regression model 
 
 * The outcome is a binary or dichotomous variable like yes vs no, positive vs negative, 1 vs 0.
@@ -262,18 +251,18 @@ mult_reg <- surveys_casenotes %>% ungroup() %>% dplyr::select(-c(`6a Are you enr
                                                                  `27 What are your top two personal goals`,
                                                                  `28 What are your top two motivators for`,
                                                                  `29 How can your Career Navigator better`,
-                                                                 `Estimated Graduation Date`,
+                                                                 `Estimated Graduation Date`,Status,
                                                                  `1c Who is your assigned Career Navigator?`,
                                                                  "Academic Priority Level", "Financial Priority Level",
                                                                  "Situational Priority Level", "7 What is your current academic standing at ACC?",
-                                                                 `16 Which best describes your current living situation?`,
-                                                                 `Career Goal`, "Component", City ,"Do you have children?",
+                                                                # `16 Which best describes your current living situation?`,
+                                                                 `Career Goal`, "Component", City ,#"Do you have children?",
                                                                  "If no diploma or GED obtained, Highest...","SAGE was taken in:",                                                                                        "SAGE Reasoning", "SAGE Interest", "Educational Status", "Race",
-                                                                 "12 Over the past 3 months, have you had legal issues related to child support?",    
-                                                                 "12a Over the past 3 months, have you had legal issues related to housing eviction?",   
-                                                                 "12b Over the past 3 months, have you had legal issues related to bankrupcy?",          
-                                                                 "12c Over the past 3 months, have you had legal issues related to criminal offenses (not including traffic violations)?",
-                                                                 "12d Over the past 3 months, have you had legal issues related to tickets or traffic violations?"
+                                                                # "12 Over the past 3 months, have you had legal issues related to child support?",    
+                                                                # "12a Over the past 3 months, have you had legal issues related to housing eviction?",   
+                                                                # "12b Over the past 3 months, have you had legal issues related to bankrupcy?",          
+                                                                # "12c Over the past 3 months, have you had legal issues related to criminal offenses (not including traffic violations)?",
+                                                                 # "12d Over the past 3 months, have you had legal issues related to tickets or traffic violations?"
                                                                  ))
 
 
@@ -288,16 +277,49 @@ mult_reg <- surveys_casenotes %>% ungroup() %>% dplyr::select(-c(`6a Are you enr
 mult_reg <- clean_names(mult_reg)
 mult_reg <- mult_reg %>% drop_na(total_session_minutes) %>% select(-c(x15_what_best_describes_your_current_childcare_arrangements,
                                                                       x4_last_semester_how_many_credit_hours_registered,
-                                                                      x5_last_semester_how_many_credit_hours_completed))  
+                                                                      x5_last_semester_how_many_credit_hours_completed,
+                                                                      academic_total_score,
+                                                                      financial_burden_total_score,
+                                                                      situational_total_score
+                                                                      ))  
+
+#Setting the NA values to Unknown
+mult_reg$x24_what_form_of_transportation_do_you_most_commonly_use[is.na(mult_reg$x24_what_form_of_transportation_do_you_most_commonly_use)] <- "Unknown"
+mult_reg$x12a_over_the_past_3_months_have_you_had_legal_issues_related_to_housing_eviction[is.na(mult_reg$x12a_over_the_past_3_months_have_you_had_legal_issues_related_to_housing_eviction)] <- "Unknown"
+mult_reg$x12b_over_the_past_3_months_have_you_had_legal_issues_related_to_bankrupcy[is.na(mult_reg$x12b_over_the_past_3_months_have_you_had_legal_issues_related_to_bankrupcy)] <- "Unknown"
+mult_reg$x12c_over_the_past_3_months_have_you_had_legal_issues_related_to_criminal_offenses_not_including_traffic_violations[is.na(mult_reg$x12c_over_the_past_3_months_have_you_had_legal_issues_related_to_criminal_offenses_not_including_traffic_violations)] <- "Unknown"
+mult_reg$x12d_over_the_past_3_months_have_you_had_legal_issues_related_to_tickets_or_traffic_violations[is.na(mult_reg$x12d_over_the_past_3_months_have_you_had_legal_issues_related_to_tickets_or_traffic_violations)] <- "Unknown"
+mult_reg$do_you_have_children[is.na(mult_reg$do_you_have_children)] <- "Unknown"
 
 #removing row 237 because it had high leverage 
 mult_reg <- mult_reg[-c(237), ]
 
 model <- glm(good_standing ~ ., family=binomial(link='logit'),data=mult_reg,  maxit = 100)
 
-summary(model)
+# summary(model) the tidy model works better 
 df <- as.data.frame(tidy(model))
 #Race didnt' seem to be important factor in whether a student was in good academic statnding, but being hispanic was
+
+```
+
+
+```{r backward_stepwise}
+library(MASS)
+step <- stepAIC(model, direction = "backward", trace = FALSE)
+step
+
+
+
+
+```
+# We need to get to the bottom of the fact that Hispanics had a higher likelihood of being in bad standing with the university 
+
+```{r full_model_hispanic_only}
+
+hispanics <- mult_reg %>%  dplyr::filter(are_you_of_hispanic_or_latino_origin == "Yes") %>% select(-c(are_you_of_hispanic_or_latino_origin))
+
+model_hispanic <- glm(good_standing ~ ., family=binomial(link='logit'),data=hispanics)
+df_hispanic <- as.data.frame(tidy(model_hispanic))
 
 ```
 
