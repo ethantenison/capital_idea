@@ -241,41 +241,33 @@ for (i in 1:length(surveys_casenotes$`7 What is your current academic standing a
 
 ```
 
-#Removing undesireable columns
-```{r}
-#removing nas from selected columns
-mult_reg <- surveys_casenotes %>% ungroup() %>% dplyr::select(-c(`6a Are you enrolled in College Prep?`,`6b Are you awaiting acceptance into a`,
-                                                                 `11d Please specify your OTHER financial`,`23a If yes, please explain`,
-                                                                 `Is this an Intake Applicant or a current`, `Survey Date`, `First`,
-                                                                 `Last`,`semester`, `26 What are your top two academic goals`,
-                                                                 `27 What are your top two personal goals`,
-                                                                 `28 What are your top two motivators for`,
-                                                                 `29 How can your Career Navigator better`,
-                                                                 `Estimated Graduation Date`,Status,
-                                                                 `1c Who is your assigned Career Navigator?`,
-                                                                 "Academic Priority Level", "Financial Priority Level",
-                                                                 "Situational Priority Level", "7 What is your current academic standing at ACC?",
-                                                                # `16 Which best describes your current living situation?`,
-                                                                 `Career Goal`, "Component", City ,#"Do you have children?",
-                                                                 "If no diploma or GED obtained, Highest...","SAGE was taken in:",                                                                                                 "SAGE Reasoning", "SAGE Interest", "Educational Status", "Race"
-                                                                # "12 Over the past 3 months, have you had legal issues related to child support?",    
-                                                                # "12a Over the past 3 months, have you had legal issues related to housing eviction?",   
-                                                                # "12b Over the past 3 months, have you had legal issues related to bankrupcy?",          
-                                                                # "12c Over the past 3 months, have you had legal issues related to criminal offenses (not including traffic violations)?",
-                                                                 # "12d Over the past 3 months, have you had legal issues related to tickets or traffic violations?"
-                                                                 ))
+
+```{r full_model. Warning = FALSE, message= FALSE}
+
+mult_reg = surveys_casenotes %>%
+          ungroup() %>%
+          dplyr::select(-c(`6a Are you enrolled in College Prep?`,
+                           `6b Are you awaiting acceptance into a`,
+                           `11d Please specify your OTHER financial`,`23a If yes, please explain`,
+                           `Is this an Intake Applicant or a current`, `Survey Date`, `First`,
+                           `Last`,`semester`, `26 What are your top two academic goals`,
+                           `27 What are your top two personal goals`,
+                           `28 What are your top two motivators for`,
+                           `29 How can your Career Navigator better`,
+                           `Estimated Graduation Date`,Status,
+                           `1c Who is your assigned Career Navigator?`,
+                           "Academic Priority Level", "Financial Priority Level",
+                           "Situational Priority Level", "7 What is your current academic standing at ACC?",
+                           `Career Goal`, "Component", City ,
+                           "If no diploma or GED obtained, Highest...","SAGE was taken in:","SAGE Interest",
+                           "Educational Status")) 
+            
 
 
-
-```
-
-
-
-```{r full_model}
 #Running the model
 library(MASS)
 mult_reg <- clean_names(mult_reg)
-mult_reg <- mult_reg %>% drop_na(total_session_minutes) %>% dplyr::select(-c(x15_what_best_describes_your_current_childcare_arrangements,
+mult_reg <- mult_reg %>% drop_na(total_session_minutes) %>% dplyr::select(-c(are_you_of_hispanic_or_latino_origin,
                                                                       x4_last_semester_how_many_credit_hours_registered,
                                                                       x5_last_semester_how_many_credit_hours_completed,
                                                                       academic_total_score,
@@ -295,24 +287,194 @@ mult_reg$do_you_have_children[is.na(mult_reg$do_you_have_children)] <- "Unknown"
 mult_reg <- mult_reg[-c(237), ]
 
 #Remove NAs for it to work 
-mult_reg <- na.omit(mult_reg)
-model <- glm(good_standing ~ ., family=binomial(link='logit'),data=mult_reg,  maxit = 100) %>%  stepAIC(trace = FALSE) #added backward stepwise selection
+mult_reg = na.omit(mult_reg)
+model <- glm(good_standing ~ ., family=binomial(link='logit'),data=mult_reg) %>%  stepAIC(trace = FALSE) #added backward stepwise selection
 
 # summary(model) the tidy model works better 
 df <- as.data.frame(tidy(model))
 #Race didnt' seem to be important factor in whether a student was in good academic statnding, but being hispanic was
+
+
+#Computing the odds
+logit2odds <- function(logit){
+    odds <- exp(logit)
+    return(odds)
+}
+
+odds <- data.frame(as.list(logit2odds(coef(model))))
+odds['forwide'] = 'Yes'
+library(tidyr)
+odds_long <- gather(odds, term, odds, X.Intercept.:total_session_minutes, factor_key=TRUE)
+odds_long = odds_long[,-1]
+odds_long$term = as.character(odds_long$term)
+
+#Subsetting significant variables
+df_significant <- dplyr::filter(df, p.value < .1)
+df_significant <- left_join(df_significant, odds_long, by = "term")
+
+#putting in the values for variables that could not be joined
+df_significant$odds[df_significant$term == "x6_how_many_credit_hours_currently_registered_this_semester10 - 12 credit hours (usually four classes) -"] = 4.9840301
+df_significant$odds[df_significant$term == "x6_how_many_credit_hours_currently_registered_this_semester4 - 6 credit hours (usually two classes) -"] = 	2.2273206
+df_significant$odds[df_significant$term == "x9_over_the_past_6_months_were_you_able_to_pay_your_rent_mortgage_or_housing_expense_on_time_and_in_full_every_monthNot applicable (select this if you are homeless, currently living with a friend or family without rent, or don't have housing expenses at this time)"] = 	0.2936733
+df_significant$odds[df_significant$term == "x17_how_would_you_consider_your_present_living_arrangementPermanent (I'll be here more than 6 months)"] = 2.4921778
+df_significant$odds[df_significant$term == "x16_which_best_describes_your_current_living_situationOwn a home (paying mortgage)"] = 29.2040600
+df_significant$odds[df_significant$term == "x12a_over_the_past_3_months_have_you_had_legal_issues_related_to_housing_evictionYes - Housing Eviction legal issues"] = 0.1066242
+
+
+
+#Calculating probability 
+source("https://sebastiansauer.github.io/Rcode/logit2prob.R")
+probs <- data.frame(as.list(logit2prob(coef(model))))
+
+
+write.csv(df_significant, "data/significant_variables.csv")
 
 ```
 
 
 # We need to get to the bottom of the fact that Hispanics had a higher likelihood of being in bad standing with the university 
 
-```{r full_model_hispanic_only}
+```{r full_model_hispanic_only, warning = FALSE, message= FALSE}
 
-hispanics <- mult_reg %>%  dplyr::filter(are_you_of_hispanic_or_latino_origin == "Yes") %>% dplyr::select(-c(are_you_of_hispanic_or_latino_origin))
+
+mult_reg = surveys_casenotes %>%
+          ungroup() %>%
+          dplyr::select(-c(`6a Are you enrolled in College Prep?`,
+                           `6b Are you awaiting acceptance into a`,
+                           `11d Please specify your OTHER financial`,`23a If yes, please explain`,
+                           `Is this an Intake Applicant or a current`, `Survey Date`, `First`,
+                           `Last`,`semester`, `26 What are your top two academic goals`,
+                           `27 What are your top two personal goals`,
+                           `28 What are your top two motivators for`,
+                           `29 How can your Career Navigator better`,
+                           `Estimated Graduation Date`,Status,
+                           `1c Who is your assigned Career Navigator?`,
+                           "Academic Priority Level", "Financial Priority Level",
+                           "Situational Priority Level", "7 What is your current academic standing at ACC?",
+                           `Career Goal`, "Component", City ,
+                           "If no diploma or GED obtained, Highest...","SAGE was taken in:","SAGE Interest",
+                           "Educational Status")) 
+            
+
+
+#Running the model
+library(MASS)
+mult_reg <- clean_names(mult_reg)
+mult_reg <- mult_reg %>% drop_na(total_session_minutes) %>% dplyr::select(-c(
+                                                                      x4_last_semester_how_many_credit_hours_registered,
+                                                                      x5_last_semester_how_many_credit_hours_completed,
+                                                                      academic_total_score,
+                                                                      financial_burden_total_score,
+                                                                      situational_total_score
+                                                                      ))  
+
+#Setting the NA values to Unknown
+mult_reg$x24_what_form_of_transportation_do_you_most_commonly_use[is.na(mult_reg$x24_what_form_of_transportation_do_you_most_commonly_use)] <- "Unknown"
+mult_reg$x12a_over_the_past_3_months_have_you_had_legal_issues_related_to_housing_eviction[is.na(mult_reg$x12a_over_the_past_3_months_have_you_had_legal_issues_related_to_housing_eviction)] <- "Unknown"
+mult_reg$x12b_over_the_past_3_months_have_you_had_legal_issues_related_to_bankrupcy[is.na(mult_reg$x12b_over_the_past_3_months_have_you_had_legal_issues_related_to_bankrupcy)] <- "Unknown"
+mult_reg$x12c_over_the_past_3_months_have_you_had_legal_issues_related_to_criminal_offenses_not_including_traffic_violations[is.na(mult_reg$x12c_over_the_past_3_months_have_you_had_legal_issues_related_to_criminal_offenses_not_including_traffic_violations)] <- "Unknown"
+mult_reg$x12d_over_the_past_3_months_have_you_had_legal_issues_related_to_tickets_or_traffic_violations[is.na(mult_reg$x12d_over_the_past_3_months_have_you_had_legal_issues_related_to_tickets_or_traffic_violations)] <- "Unknown"
+mult_reg$do_you_have_children[is.na(mult_reg$do_you_have_children)] <- "Unknown"
+
+#removing row 237 because it had high leverage 
+mult_reg <- mult_reg[-c(237), ]
+
+#Remove NAs for it to work 
+mult_reg = na.omit(mult_reg)
+hispanics = mult_reg %>% 
+                    dplyr::filter(are_you_of_hispanic_or_latino_origin == "Yes") %>%
+                    dplyr::select(-c(are_you_of_hispanic_or_latino_origin))
 
 model_hispanic <- glm(good_standing ~ ., family=binomial(link='logit'),data=hispanics) %>% stepAIC(trace = FALSE)
 df_hispanic <- as.data.frame(tidy(model_hispanic))
+
+#Computing the odds
+logit2odds <- function(logit){
+    odds <- exp(logit)
+    return(odds)
+}
+
+odds <- data.frame(as.list(logit2odds(coef(model_hispanic))))
+odds['forwide'] = 'Yes'
+library(tidyr)
+odds_long <- gather(odds, term, odds, X.Intercept.:sage_reasoningReasoning..6...Approximate.grade.level.College.3..Years, factor_key=TRUE)
+odds_long = odds_long[,-1]
+odds_long$term = as.character(odds_long$term)
+
+#Subsetting significant variables
+df_significant_hispanic <- dplyr::filter(df_hispanic, p.value < .1)
+df_significant_hispanic <- left_join(df_significant_hispanic, odds_long, by = "term")
+df_significant_hispanic$odds[df_significant_hispanic$term == "x17_how_would_you_consider_your_present_living_arrangementPermanent (I'll be here more than 6 months)"] = 	2.967836136501983
+df_significant_hispanic$odds[df_significant_hispanic$term == "x11a_over_the_past_3_months_has_medical_debt_been_a_cause_of_financial_stress_or_hardship_for_youYes - Medical Debt"] = 5.043680790936799
+
+write.csv(df_significant_hispanic, "data/significant_hispanic_variables.csv")
+
+
+```
+
+
+```{r high_risk_model, Warning = FALSE, message= FALSE}
+
+#Here I'm only looking at students who are are medium and high priority level 
+mult_reg = surveys_casenotes %>%
+          ungroup() %>% dplyr::filter(`Academic Priority Level` == "High Priority" | `Academic Priority Level` == "Medium Priority") %>% 
+          dplyr::select(-c(`6a Are you enrolled in College Prep?`,
+                           `6b Are you awaiting acceptance into a`,
+                           `11d Please specify your OTHER financial`,`23a If yes, please explain`,
+                           `Is this an Intake Applicant or a current`, `Survey Date`, `First`,
+                           `Last`,`semester`, `26 What are your top two academic goals`,
+                           `27 What are your top two personal goals`,
+                           `28 What are your top two motivators for`,
+                           `29 How can your Career Navigator better`,
+                           `Estimated Graduation Date`,Status,
+                           `1c Who is your assigned Career Navigator?`,
+                           "Academic Priority Level", "Financial Priority Level",
+                           "Situational Priority Level", "7 What is your current academic standing at ACC?",
+                           `Career Goal`, "Component", City ,
+                           "If no diploma or GED obtained, Highest...","SAGE was taken in:","SAGE Interest",
+                           "Educational Status")) 
+            
+
+
+#Running the model
+library(MASS)
+mult_reg <- clean_names(mult_reg)
+mult_reg <- mult_reg %>% drop_na(total_session_minutes) %>% dplyr::select(-c(are_you_of_hispanic_or_latino_origin,
+                                                                      x4_last_semester_how_many_credit_hours_registered,
+                                                                      x5_last_semester_how_many_credit_hours_completed,
+                                                                      academic_total_score,
+                                                                      financial_burden_total_score,
+                                                                      situational_total_score,
+                                                                      household_languages,
+                                                                      do_you_have_children
+                                                                      ))  
+
+#Setting the NA values to Unknown
+mult_reg$x24_what_form_of_transportation_do_you_most_commonly_use[is.na(mult_reg$x24_what_form_of_transportation_do_you_most_commonly_use)] <- "Unknown"
+mult_reg$x12a_over_the_past_3_months_have_you_had_legal_issues_related_to_housing_eviction[is.na(mult_reg$x12a_over_the_past_3_months_have_you_had_legal_issues_related_to_housing_eviction)] <- "Unknown"
+mult_reg$x12b_over_the_past_3_months_have_you_had_legal_issues_related_to_bankrupcy[is.na(mult_reg$x12b_over_the_past_3_months_have_you_had_legal_issues_related_to_bankrupcy)] <- "Unknown"
+mult_reg$x12c_over_the_past_3_months_have_you_had_legal_issues_related_to_criminal_offenses_not_including_traffic_violations[is.na(mult_reg$x12c_over_the_past_3_months_have_you_had_legal_issues_related_to_criminal_offenses_not_including_traffic_violations)] <- "Unknown"
+mult_reg$x12d_over_the_past_3_months_have_you_had_legal_issues_related_to_tickets_or_traffic_violations[is.na(mult_reg$x12d_over_the_past_3_months_have_you_had_legal_issues_related_to_tickets_or_traffic_violations)] <- "Unknown"
+
+
+
+#Converting character columns to factor
+## The conversion
+mult_reg[sapply(mult_reg, is.character)] <- lapply(mult_reg[sapply(mult_reg, is.character)], 
+                                       as.factor)
+
+#Remove NAs for it to work 
+mult_reg = na.omit(mult_reg)
+model <- glm(good_standing ~ ., family=binomial(link='logit'),data=mult_reg) %>%  stepAIC(trace = FALSE) #added backward stepwise selection
+
+# summary(model) the tidy model works better 
+df_highrisk <- as.data.frame(tidy(model))
+
+
+
+
+#This doesn't work because the data was taken from the academic score
+
 
 ```
 
