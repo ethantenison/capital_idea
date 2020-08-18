@@ -214,15 +214,65 @@ print(
 
 ```
 
-# Assumptions of a logistic regression model 
+```{r session_minutes}
+library(extrafont)
+library(readxl)
+windowsFonts(Times=windowsFont("Times"))
 
-* The outcome is a binary or dichotomous variable like yes vs no, positive vs negative, 1 vs 0.
 
-* There is a linear relationship between the logit of the outcome and each predictor variables. Recall that the logit function is logit(p) = log(p/(1-p)), where p is the probabilities of the outcome (see Chapter @ref(logistic-regression)).
+theme_set(theme_bw())
 
-* There is no influential values (extreme values or outliers) in the continuous predictors
+g <- ggplot(surveys_casenotes, aes(x=total_session_minutes)) +
+  theme(legend.background = element_rect(fill = "transparent"), 
+         legend.key = element_rect(fill = "transparent"), 
+         legend.spacing = unit(-1, "lines"),
+         panel.background = element_blank(), axis.line = element_line(colour = "black"),
+         text=element_text(family="Times", face = "bold", size=16), 
+         axis.text.x = element_text(vjust = 1, hjust = 1),
+         axis.title.y.right = element_text( vjust = 2.5),
+         axis.title.x = element_text(vjust = -0.5),
+         plot.title = element_text(hjust = 0.5),
+         legend.position = "bottom")+
+  geom_histogram(stat = "count", fill = "blue") +
+  xlab("Total Session Minutes") +
+  ylab("Count") +
+  ggtitle("Histogram of Navigator Session Minutes \n (Fall and Spring Semester)")
+  
+  
+ggsave("images/session_minutes.png", width = 10, height = 7, dpi = 500)
 
-* There is no high intercorrelations (i.e. multicollinearity) among the predictors.
+
+```
+
+```{r age}
+
+library(extrafont)
+library(readxl)
+windowsFonts(Times=windowsFont("Times"))
+
+
+theme_set(theme_bw())
+
+g <- ggplot(surveys_casenotes, aes(x=`Age at intake`)) +
+  theme(legend.background = element_rect(fill = "transparent"), 
+         legend.key = element_rect(fill = "transparent"), 
+         legend.spacing = unit(-1, "lines"),
+         panel.background = element_blank(), axis.line = element_line(colour = "black"),
+         text=element_text(family="Times", face = "bold", size=16), 
+         axis.text.x = element_text(vjust = 1, hjust = 1),
+         axis.title.y.right = element_text( vjust = 2.5),
+         axis.title.x = element_text(vjust = -0.5),
+         plot.title = element_text(hjust = 0.5),
+         legend.position = "bottom")+
+  geom_histogram(stat = "count", fill = "darkgreen") +
+  xlab("Age at Intake") +
+  ylab("Count") +
+  ggtitle("Histogram of Age \n (Fall and Spring Semester)")
+  
+  
+ggsave("images/age.png", width = 10, height = 7, dpi = 500)
+
+```
 
 # creating binary variable 
 ```{r binary}
@@ -242,7 +292,7 @@ for (i in 1:length(surveys_casenotes$`7 What is your current academic standing a
 ```
 
 
-```{r full_model. Warning = FALSE, message= FALSE}
+```{r, full_model, message=FALSE, warning=FALSE}
 
 mult_reg = surveys_casenotes %>%
           ungroup() %>%
@@ -267,7 +317,7 @@ mult_reg = surveys_casenotes %>%
 #Running the model
 library(MASS)
 mult_reg <- clean_names(mult_reg)
-mult_reg <- mult_reg %>% drop_na(total_session_minutes) %>% dplyr::select(-c(are_you_of_hispanic_or_latino_origin,
+mult_reg <- mult_reg %>% drop_na(total_session_minutes) %>% dplyr::select(-c(
                                                                       x4_last_semester_how_many_credit_hours_registered,
                                                                       x5_last_semester_how_many_credit_hours_completed,
                                                                       academic_total_score,
@@ -331,6 +381,61 @@ write.csv(df_significant, "data/significant_variables.csv")
 
 ```
 
+
+
+#Test the full model
+
+
+```{r full_model_predictions}
+
+library(caTools)
+
+mult_reg2 <- mult_reg
+
+#Splitting the data into test and train 
+set.seed(27)
+split = sample.split(mult_reg2$good_standing, SplitRatio = 0.70)
+train = subset(mult_reg2, split == TRUE)
+test = subset(mult_reg2, split == FALSE)
+
+
+
+#Running model on the train set
+
+model2 <- glm(good_standing ~ ., family=binomial(link='logit'),data=train) %>%  stepAIC(trace = FALSE) #added backward stepwise selection
+
+# summary(model) the tidy model works better 
+df <- as.data.frame(tidy(model2))
+
+
+#Compute confusion matrix 
+library(caret)
+p <- predict(model2, test, type = "response")
+print(summary(p))
+
+
+p_class <- ifelse(p > 0.95, "Predict 1", "Predict 0")
+print(table(p_class, test[["good_standing"]]))
+
+
+
+#COmputing the accuracy 
+#For test set
+print("Test set")
+t <- table(p_class, test[["good_standing"]]) #How many instances were misclassified? Error rates?
+t
+#Accuracy Rate
+print("Accuracy Rate")
+(t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2])
+
+print("True Negative")
+print((t[1,1])/ (t[2,1] +t[1,1]))
+print("True Positive")
+print((t[2,2])/ (t[2,2] +t[1,2]))
+
+
+#Using a high threshold 
+```
 
 # We need to get to the bottom of the fact that Hispanics had a higher likelihood of being in bad standing with the university 
 
@@ -413,103 +518,21 @@ write.csv(df_significant_hispanic, "data/significant_hispanic_variables.csv")
 ```
 
 
-```{r high_risk_model, Warning = FALSE, message= FALSE}
-
-#Here I'm only looking at students who are are medium and high priority level 
-mult_reg = surveys_casenotes %>%
-          ungroup() %>% dplyr::filter(`Academic Priority Level` == "High Priority" | `Academic Priority Level` == "Medium Priority") %>% 
-          dplyr::select(-c(`6a Are you enrolled in College Prep?`,
-                           `6b Are you awaiting acceptance into a`,
-                           `11d Please specify your OTHER financial`,`23a If yes, please explain`,
-                           `Is this an Intake Applicant or a current`, `Survey Date`, `First`,
-                           `Last`,`semester`, `26 What are your top two academic goals`,
-                           `27 What are your top two personal goals`,
-                           `28 What are your top two motivators for`,
-                           `29 How can your Career Navigator better`,
-                           `Estimated Graduation Date`,Status,
-                           `1c Who is your assigned Career Navigator?`,
-                           "Academic Priority Level", "Financial Priority Level",
-                           "Situational Priority Level", "7 What is your current academic standing at ACC?",
-                           `Career Goal`, "Component", City ,
-                           "If no diploma or GED obtained, Highest...","SAGE was taken in:","SAGE Interest",
-                           "Educational Status")) 
-            
+# Diagnostic Tests for Logistic Regresssion 
+-The tests below can be used to improve the logistic regression model. Ultimately they were not used for the final model, but they may be of interest for future iterations of this project. 
 
 
-#Running the model
-library(MASS)
-mult_reg <- clean_names(mult_reg)
-mult_reg <- mult_reg %>% drop_na(total_session_minutes) %>% dplyr::select(-c(are_you_of_hispanic_or_latino_origin,
-                                                                      x4_last_semester_how_many_credit_hours_registered,
-                                                                      x5_last_semester_how_many_credit_hours_completed,
-                                                                      academic_total_score,
-                                                                      financial_burden_total_score,
-                                                                      situational_total_score,
-                                                                      household_languages,
-                                                                      do_you_have_children
-                                                                      ))  
+### Assumptions of a logistic regression model 
 
-#Setting the NA values to Unknown
-mult_reg$x24_what_form_of_transportation_do_you_most_commonly_use[is.na(mult_reg$x24_what_form_of_transportation_do_you_most_commonly_use)] <- "Unknown"
-mult_reg$x12a_over_the_past_3_months_have_you_had_legal_issues_related_to_housing_eviction[is.na(mult_reg$x12a_over_the_past_3_months_have_you_had_legal_issues_related_to_housing_eviction)] <- "Unknown"
-mult_reg$x12b_over_the_past_3_months_have_you_had_legal_issues_related_to_bankrupcy[is.na(mult_reg$x12b_over_the_past_3_months_have_you_had_legal_issues_related_to_bankrupcy)] <- "Unknown"
-mult_reg$x12c_over_the_past_3_months_have_you_had_legal_issues_related_to_criminal_offenses_not_including_traffic_violations[is.na(mult_reg$x12c_over_the_past_3_months_have_you_had_legal_issues_related_to_criminal_offenses_not_including_traffic_violations)] <- "Unknown"
-mult_reg$x12d_over_the_past_3_months_have_you_had_legal_issues_related_to_tickets_or_traffic_violations[is.na(mult_reg$x12d_over_the_past_3_months_have_you_had_legal_issues_related_to_tickets_or_traffic_violations)] <- "Unknown"
+* The outcome is a binary or dichotomous variable like yes vs no, positive vs negative, 1 vs 0.
 
+* There is a linear relationship between the logit of the outcome and each predictor variables. Recall that the logit function is logit(p) = log(p/(1-p)), where p is the probabilities of the outcome (see Chapter @ref(logistic-regression)).
 
+* There is no influential values (extreme values or outliers) in the continuous predictors
 
-#Converting character columns to factor
-## The conversion
-mult_reg[sapply(mult_reg, is.character)] <- lapply(mult_reg[sapply(mult_reg, is.character)], 
-                                       as.factor)
+* There is no high intercorrelations (i.e. multicollinearity) among the predictors.
+```{r test_logistic, eval=FALSE, include=FALSE}
 
-#Remove NAs for it to work 
-mult_reg = na.omit(mult_reg)
-model <- glm(good_standing ~ ., family=binomial(link='logit'),data=mult_reg) %>%  stepAIC(trace = FALSE) #added backward stepwise selection
-
-# summary(model) the tidy model works better 
-df_highrisk <- as.data.frame(tidy(model))
-
-
-
-
-#This doesn't work because the data was taken from the academic score
-
-
-```
-
-
-```{r parsimonious_model}
-
-x4model2 <- dplyr::select(mult_reg,good_standing ,academic_total_score ,financial_burden_total_score , situational_total_score , total_session_minutes , are_you_of_hispanic_or_latino_origin , 	tabe_mathematics , x6_how_many_credit_hours_currently_registered_this_semester , gender , status , 	x8_do_you_think_there_are_any_issues_that_might_keep_you_from_maintaining_good_standing_with_acc)
-
-#Removing 521 because it is highly influential
-x4model2 <- x4model2[-c(521), ]
-
-x4model2 <- na.omit(x4model2)
-
-model2 <- glm(good_standing ~ poly(academic_total_score, 2) + situational_total_score + poly(total_session_minutes, 3) + are_you_of_hispanic_or_latino_origin + 	poly(tabe_mathematics, 2) + x6_how_many_credit_hours_currently_registered_this_semester + gender + status + 	x8_do_you_think_there_are_any_issues_that_might_keep_you_from_maintaining_good_standing_with_acc ,family=binomial(link='logit'),data=x4model2)
-
-summary(model2)
-df2 <- as.data.frame(tidy(model2))
-
-#Converting log odds to probability 
-source("https://sebastiansauer.github.io/Rcode/logit2prob.R")
-logit2prob(coef(model2))
-
-
-# Predict the probability (p) of diabete positivity
-probabilities <- predict(model2, type = "response")
-predicted.classes <- ifelse(probabilities > 0.5, "pos", "neg")
-head(predicted.classes)
-
-# good_standing_mex <-factor(hispanics$good_standing,c(0,1),labels=c('No','Yes'))
-# SurT_mex<-table(good_standing_mex)addmargins(SurT_mex)
-# prop.table(SurT_mex)
-```
-
-
-```{r test_logistic}
 
 #################################Linearly assumption 
 # Select only numeric predictors
@@ -550,57 +573,8 @@ library(car)
 
 car::vif(model2)
 ```
-# The odds of being in good standing with the university are 70% lower for hispanics than non hispanics. The probability of being in good standing is approx. 77% compared to approx 89% of the rest. 
+The odds of being in good standing with the university are 70% lower for hispanics than non hispanics. The probability of being in good standing is approx. 77% compared to approx 89% of the rest. 
 
-
-
-```{r log_prediction}
-library(caTools)
-
-x4model3 <- x4model2
-
-#Splitting the data into test and train 
-set.seed(27)
-split = sample.split(x4model3$good_standing, SplitRatio = 0.70)
-train = subset(x4model3, split == TRUE)
-test = subset(x4model3, split == FALSE)
-
-
-#Running model on the train set
-model3 <- glm(good_standing ~ poly(academic_total_score, 2) + situational_total_score + poly(total_session_minutes, 3) + are_you_of_hispanic_or_latino_origin + 	poly(tabe_mathematics, 2) + x6_how_many_credit_hours_currently_registered_this_semester + gender + status + 	x8_do_you_think_there_are_any_issues_that_might_keep_you_from_maintaining_good_standing_with_acc ,family=binomial(link='logit'),data=train)
-
-summary(model3)
-df3 <- as.data.frame(tidy(model3))
-
-
-
-#Compute confusion matrix 
-library(caret)
-p <- predict(model3, test, type = "response")
-print(summary(p))
-
-
-p_class <- ifelse(p > 0.9, "Predict 1", "Predict 0")
-print(table(p_class, test[["good_standing"]]))
-
-
-
-#COmputing the accuracy 
-#For test set
-print("Test set")
-t <- table(p_class, test[["good_standing"]]) #How many instances were misclassified? Error rates?
-t
-#Accuracy Rate
-print("Accuracy Rate")
-(t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2])
-
-print("True Negative")
-print((t[1,1])/ (t[2,1] +t[1,1]))
-print("True Positive")
-print((t[2,2])/ (t[2,2] +t[1,2]))
-
-
-```
 
 # Cross Validation for the logistic regression model 
 Based on the results, it's clear that the model is better at predicting than being completely random. I think it's difficult to assess with CV because the samples are too small for logistic regression. 
@@ -691,37 +665,12 @@ print((t[2,2])/ (t[2,2] +t[1,2]))
 
 ```
 
-# KNN does a terrible job 
-```{r knn}
-library(class)
-library(gmodels)
-library(caret)
 
-#KNN has higher total accuracy rate, but
-dfknn <- x4model2
-  
-set.seed(27)
-dmy <- dummyVars(" ~ .", data = dfknn)
-dfknn <- data.frame(predict(dmy, newdata = dfknn))
-split = sample.split(dfknn$good_standing, SplitRatio = 0.6)
-train_knn = subset(dfknn, split == TRUE)
-train_labels = train_knn[["good_standing"]]
-train_knn[is.na(train_knn)] <- 0
-
-test_knn = subset(dfknn, split == FALSE)
-test_labels = test_knn[["good_standing"]]
-test_knn[is.na(test_knn)] <- 0
-
-
-dfknn_prediction = class::knn(train= train_knn, test = test_knn, cl= train_labels, k = 5)
-CrossTable(x= test_labels, y= dfknn_prediction, chisq = FALSE)
-
-```
 
 ```{r tree_full}
 
 
-tree <- dfknn
+tree <- mult_reg
 
 
 
@@ -778,7 +727,7 @@ text(mod.tree.prune, pretty = 1,  splits = TRUE, cex=.8)
 tree$good_standing.Pred <- predict(mod.tree.prune, newdata = tree)
 
 #Reapply 50% classification threshold for predicted conversion
-tree$good_standing.Pred.Class <- ifelse(tree$good_standing.Pred > 0.9, "1", "0")
+tree$good_standing.Pred.Class <- ifelse(tree$good_standing.Pred > 0.80, "1", "0")
 table(tree$good_standing.Pred.Class)
 
 tree$good_standing <- as.character(tree$good_standing)
@@ -796,10 +745,13 @@ print("Test set")
 t <-table(Truegood_standing = tree$good_standing[test], Predgood_standing = tree$good_standing.Pred.Class[test]) #How many instances were misclassified? Error
 t 
 #Accuracy Rate 
-print((t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2]))
+#Accuracy Rate
+print("Accuracy Rate")
+(t[1,1] +t[2,2])/(t[1,1] +t[1,2] + t[2,1] +t[2,2])
 
-
+print("True Negative")
 print((t[1,1])/ (t[2,1] +t[1,1]))
+print("True Positive")
 print((t[2,2])/ (t[2,2] +t[1,2]))
 
 

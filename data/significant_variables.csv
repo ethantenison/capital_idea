@@ -1,0 +1,11 @@
+"","term","estimate","std.error","statistic","p.value","odds"
+"1","x6_how_many_credit_hours_currently_registered_this_semester10 - 12 credit hours (usually four classes) -",1.56471752789602,0.551797022563364,2.83567591689268,0.00457288230884255,4.9840301
+"2","x6_how_many_credit_hours_currently_registered_this_semester4 - 6 credit hours (usually two classes) -",0.765685337259825,0.399105084937754,1.91850559202784,0.0550469337401191,2.2273206
+"3","x8_do_you_think_there_are_any_issues_that_might_keep_you_from_maintaining_good_standing_with_accYes",-1.65365312199222,0.451223301680496,-3.66482208661101,0.000247510579515799,0.191349606798772
+"4","x9_over_the_past_6_months_were_you_able_to_pay_your_rent_mortgage_or_housing_expense_on_time_and_in_full_every_monthNot applicable (select this if you are homeless, currently living with a friend or family without rent, or don't have housing expenses at this time)",-1.13395456095386,0.577147349706021,-1.96475746017279,0.0494423159387668,0.2936733
+"5","x12a_over_the_past_3_months_have_you_had_legal_issues_related_to_housing_evictionYes - Housing Eviction legal issues",-1.92723047091863,1.05170989564385,-1.83247345955492,0.066880912380205,0.1066242
+"6","x16_which_best_describes_your_current_living_situationOwn a home (paying mortgage)",3.02693101125416,1.79877852759436,1.68277026038458,0.0924195742873646,29.20406
+"7","x17_how_would_you_consider_your_present_living_arrangementPermanent (I'll be here more than 6 months)",0.845799852451538,0.419433922982748,2.01652705254917,0.0437448923220984,2.4921778
+"8","are_you_of_hispanic_or_latino_originYes",-1.03757946906036,0.281852309190141,-3.68128780651712,0.000232058874584368,0.354311266228362
+"9","if_some_college_please_specify_number_of",0.0110185768249984,0.00640819935609215,1.71944975689984,0.0855325087890453,1.01107950491728
+"10","total_session_minutes",0.0018817647018486,0.000954013392147134,1.97247199812724,0.0485557498476912,1.00188353633213
